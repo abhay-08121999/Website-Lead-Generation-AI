@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.env
+leads_output/*.xlsx
+venv/
+.venv/
+*.egg-info/
+.DS_Store

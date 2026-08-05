@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: website-lead-gen-ai
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --timeout 120
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: FLASK_DEBUG
+        value: "false"
+      - key: FLASK_SECRET_KEY
+        generateValue: true
+      - key: PAGESPEED_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
