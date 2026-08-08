@@ -6,7 +6,7 @@ CLI entry point for the Website Lead Generation AI.
 
 Pipeline:
   1. DISCOVER  -> pull businesses per (city, category) from
-                  OpenStreetMap (free, no billing) + Justdial
+                  OpenStreetMap (free, no billing, no scraping)
   2. FILTER    -> split into "no website" vs "has website"
   3. ANALYZE   -> for businesses WITH a website, check reachability +
                   PageSpeed performance
@@ -34,7 +34,6 @@ def parse_args():
     parser.add_argument("--city", type=str, default=None, help="Limit to a single city")
     parser.add_argument("--category", type=str, default=None, help="Limit to a single business category")
     parser.add_argument("--limit", type=int, default=None, help="Override results-per-query (useful for testing)")
-    parser.add_argument("--skip-justdial", action="store_true", help="Only use OpenStreetMap discovery")
     parser.add_argument("--skip-performance", action="store_true",
                          help="Skip PageSpeed API calls (faster, but 'poor website' detection is weaker)")
     return parser.parse_args()
@@ -61,7 +60,6 @@ def main():
 
     qualified = run_full_pipeline(
         cities, categories, max_results,
-        use_justdial=not args.skip_justdial,
         run_performance=not args.skip_performance,
     )
 
