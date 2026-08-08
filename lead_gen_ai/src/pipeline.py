@@ -10,12 +10,12 @@ import time
 from typing import List, Dict
 
 import config
-from src.discovery import osm_places, justdial_scraper
+from src.discovery import osm_places
 from src.analysis import website_checker, performance_analyzer
 from src.scoring import lead_scorer
 
 
-def discover_all(cities: List[str], categories: List[str], max_results: int, use_justdial: bool = True) -> List[Dict]:
+def discover_all(cities: List[str], categories: List[str], max_results: int) -> List[Dict]:
     all_businesses = []
     for city in cities:
         for category in categories:
@@ -27,14 +27,6 @@ def discover_all(cities: List[str], categories: List[str], max_results: int, use
                 all_businesses.extend(osm_leads)
             except Exception as e:
                 print(f"  [ERROR] OpenStreetMap discovery failed for {city}/{category}: {e}")
-
-            if use_justdial:
-                try:
-                    jd_leads = justdial_scraper.discover_leads_for_city_category(city, category, max_results)
-                    print(f"  -> Justdial: {len(jd_leads)} businesses")
-                    all_businesses.extend(jd_leads)
-                except Exception as e:
-                    print(f"  [ERROR] Justdial failed for {city}/{category}: {e}")
 
     return all_businesses
 
@@ -73,13 +65,13 @@ def analyze_and_score(businesses: List[Dict], run_performance_check: bool = True
 
 
 def run_full_pipeline(cities: List[str], categories: List[str], max_results: int,
-                       use_justdial: bool = True, run_performance: bool = True) -> List[Dict]:
+                       run_performance: bool = True) -> List[Dict]:
     """
     Full end-to-end pipeline: discover -> dedup -> analyze -> score ->
     filter to qualified leads only. Returns the qualified leads list
     (does NOT export to Excel — caller decides what to do with results).
     """
-    businesses = discover_all(cities, categories, max_results, use_justdial)
+    businesses = discover_all(cities, categories, max_results)
     print(f"\n[TOTAL DISCOVERED] {len(businesses)} businesses (before dedup)")
 
     businesses = deduplicate(businesses)
