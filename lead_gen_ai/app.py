@@ -79,7 +79,6 @@ def search():
 
     leads = run_full_pipeline(
         [city], [category], limit,
-        use_justdial=True,
         run_performance=bool(config.PAGESPEED_API_KEY),
     )
 
