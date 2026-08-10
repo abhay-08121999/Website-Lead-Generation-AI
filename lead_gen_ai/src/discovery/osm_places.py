@@ -122,26 +122,36 @@ out center {limit * 2};
 
 
 def _query_overpass(query: str) -> Optional[Dict]:
-    """Tries each configured Overpass mirror in order until one succeeds."""
-    for url in config.OVERPASS_URLS:
-        try:
-            resp = requests.post(url, data={"data": query}, headers=HEADERS,
-                                  timeout=config.OVERPASS_TIMEOUT_SECONDS + 5)
-        except requests.RequestException as e:
-            print(f"  [WARN] Overpass mirror {url} failed: {e} — trying next mirror...", flush=True)
-            continue
-
-        if resp.status_code == 200:
+    """
+    Tries each configured Overpass mirror in order. If ALL mirrors
+    fail on the first pass (common with shared rate limits on public
+    servers), waits and does one full retry pass before giving up —
+    transient 429s/504s often clear within a few seconds.
+    """
+    for attempt in range(2):
+        for url in config.OVERPASS_URLS:
             try:
-                return resp.json()
-            except ValueError:
-                print(f"  [WARN] Overpass mirror {url} returned non-JSON — trying next mirror...", flush=True)
+                resp = requests.post(url, data={"data": query}, headers=HEADERS,
+                                      timeout=config.OVERPASS_TIMEOUT_SECONDS + 5)
+            except requests.RequestException as e:
+                print(f"  [WARN] Overpass mirror {url} failed: {e} — trying next mirror...", flush=True)
                 continue
 
-        if resp.status_code == 429:
-            print(f"  [WARN] Overpass mirror {url} rate-limited us — trying next mirror...", flush=True)
-        else:
-            print(f"  [WARN] Overpass mirror {url} returned status {resp.status_code} — trying next mirror...", flush=True)
+            if resp.status_code == 200:
+                try:
+                    return resp.json()
+                except ValueError:
+                    print(f"  [WARN] Overpass mirror {url} returned non-JSON — trying next mirror...", flush=True)
+                    continue
+
+            if resp.status_code == 429:
+                print(f"  [WARN] Overpass mirror {url} rate-limited us — trying next mirror...", flush=True)
+            else:
+                print(f"  [WARN] Overpass mirror {url} returned status {resp.status_code} — trying next mirror...", flush=True)
+
+        if attempt == 0:
+            print("  [INFO] All mirrors failed on first pass — waiting 10s before one retry pass...", flush=True)
+            time.sleep(10)
 
     return None
 
