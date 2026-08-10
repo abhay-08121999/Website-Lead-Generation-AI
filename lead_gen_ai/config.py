@@ -115,14 +115,14 @@ OSM_CATEGORY_TAGS = {
 # Overpass API is a shared free public resource — be gentle to avoid
 # getting temporarily rate-limited. Multiple public mirrors listed as
 # fallback since the main instance can be slow/overloaded.
-OVERPASS_REQUEST_DELAY = 2.0
+OVERPASS_REQUEST_DELAY = 6.0
 OVERPASS_URLS = [
     "https://overpass-api.de/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",
     "https://overpass.openstreetmap.ru/api/interpreter",
     "https://overpass.osm.ch/api/interpreter",
 ]
-OVERPASS_TIMEOUT_SECONDS = 60
+OVERPASS_TIMEOUT_SECONDS = 25
 
 # ---------------------------------------------------------------------
 # HARDCODED CITY BOUNDING BOXES (south, west, north, east)
