@@ -9,9 +9,26 @@ kar sakte ho, code kahin aur touch karne ki zaroorat nahi.
 """
 
 import os
+import socket
+import urllib3.util.connection as _urllib3_cn
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# ---------------------------------------------------------------------
+# FORCE IPv4 FOR ALL OUTBOUND REQUESTS
+# ---------------------------------------------------------------------
+# Some hosting platforms (Render's free tier included) don't route
+# IPv6 egress traffic, but hosts like overpass-api.de resolve to an
+# IPv6 address first — causing "Network is unreachable" errors even
+# though the server itself is fine. Forcing IPv4 resolution here
+# (applies globally, since this module is imported before any HTTP
+# calls happen anywhere in the app) fixes that class of failure for
+# Overpass, Nominatim, PageSpeed, and Groq calls alike.
+def _force_ipv4():
+    return socket.AF_INET
+
+_urllib3_cn.allowed_gai_family = _force_ipv4
 
 # ---------------------------------------------------------------------
 # API KEYS
@@ -103,6 +120,7 @@ OVERPASS_URLS = [
     "https://overpass-api.de/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",
     "https://overpass.openstreetmap.ru/api/interpreter",
+    "https://overpass.osm.ch/api/interpreter",
 ]
 OVERPASS_TIMEOUT_SECONDS = 60
 
