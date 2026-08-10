@@ -58,7 +58,7 @@ def geocode_city(city: str) -> Optional[Tuple[float, float, float, float]]:
     if city in _city_bbox_cache:
         return _city_bbox_cache[city]
 
-    print(f"  [INFO] '{city}' not in hardcoded city list — trying live geocoding via Nominatim...")
+    print(f"  [INFO] '{city}' not in hardcoded city list — trying live geocoding via Nominatim...", flush=True)
 
     params = {
         "city": city,
@@ -71,22 +71,22 @@ def geocode_city(city: str) -> Optional[Tuple[float, float, float, float]]:
         resp = requests.get(config.NOMINATIM_URL, params=params, headers=HEADERS, timeout=15)
         time.sleep(config.NOMINATIM_REQUEST_DELAY)
     except requests.RequestException as e:
-        print(f"  [WARN] Nominatim geocoding failed for '{city}': {e}")
+        print(f"  [WARN] Nominatim geocoding failed for '{city}': {e}", flush=True)
         return None
 
     if resp.status_code != 200:
         print(f"  [WARN] Nominatim returned status {resp.status_code} for '{city}'. "
-              f"Tip: add '{city}' to CITY_BBOXES in config.py to skip geocoding entirely.")
+              f"Tip: add '{city}' to CITY_BBOXES in config.py to skip geocoding entirely.", flush=True)
         return None
 
     try:
         results = resp.json()
     except ValueError:
-        print(f"  [WARN] Nominatim returned non-JSON response for '{city}'")
+        print(f"  [WARN] Nominatim returned non-JSON response for '{city}'", flush=True)
         return None
 
     if not results:
-        print(f"  [WARN] Nominatim found no match for city '{city}'")
+        print(f"  [WARN] Nominatim found no match for city '{city}'", flush=True)
         return None
 
     bbox = results[0].get("boundingbox")  # [south, north, west, east] as strings
@@ -128,20 +128,20 @@ def _query_overpass(query: str) -> Optional[Dict]:
             resp = requests.post(url, data={"data": query}, headers=HEADERS,
                                   timeout=config.OVERPASS_TIMEOUT_SECONDS + 5)
         except requests.RequestException as e:
-            print(f"  [WARN] Overpass mirror {url} failed: {e} — trying next mirror...")
+            print(f"  [WARN] Overpass mirror {url} failed: {e} — trying next mirror...", flush=True)
             continue
 
         if resp.status_code == 200:
             try:
                 return resp.json()
             except ValueError:
-                print(f"  [WARN] Overpass mirror {url} returned non-JSON — trying next mirror...")
+                print(f"  [WARN] Overpass mirror {url} returned non-JSON — trying next mirror...", flush=True)
                 continue
 
         if resp.status_code == 429:
-            print(f"  [WARN] Overpass mirror {url} rate-limited us — trying next mirror...")
+            print(f"  [WARN] Overpass mirror {url} rate-limited us — trying next mirror...", flush=True)
         else:
-            print(f"  [WARN] Overpass mirror {url} returned status {resp.status_code} — trying next mirror...")
+            print(f"  [WARN] Overpass mirror {url} returned status {resp.status_code} — trying next mirror...", flush=True)
 
     return None
 
@@ -186,19 +186,19 @@ def discover_leads_for_city_category(city: str, category: str, max_results: int 
     """
     tag_pairs = config.OSM_CATEGORY_TAGS.get(category)
     if not tag_pairs:
-        print(f"  [WARN] No OSM tag mapping for category '{category}' — skipping.")
+        print(f"  [WARN] No OSM tag mapping for category '{category}' — skipping.", flush=True)
         return []
 
     bbox = geocode_city(city)
     if not bbox:
-        print(f"  [WARN] Could not resolve bounding box for '{city}' — skipping.")
+        print(f"  [WARN] Could not resolve bounding box for '{city}' — skipping.", flush=True)
         return []
 
     query = _build_query(bbox, tag_pairs, max_results)
     data = _query_overpass(query)
 
     if data is None:
-        print(f"  [WARN] All Overpass mirrors failed for {city}/{category}.")
+        print(f"  [WARN] All Overpass mirrors failed for {city}/{category}.", flush=True)
         return []
 
     elements = data.get("elements", [])
