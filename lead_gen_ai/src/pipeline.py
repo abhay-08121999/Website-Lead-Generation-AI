@@ -19,14 +19,14 @@ def discover_all(cities: List[str], categories: List[str], max_results: int) -> 
     all_businesses = []
     for city in cities:
         for category in categories:
-            print(f"[DISCOVER] {category} in {city} ...")
+            print(f"[DISCOVER] {category} in {city} ...", flush=True)
 
             try:
                 osm_leads = osm_places.discover_leads_for_city_category(city, category, max_results)
-                print(f"  -> OpenStreetMap: {len(osm_leads)} businesses")
+                print(f"  -> OpenStreetMap: {len(osm_leads)} businesses", flush=True)
                 all_businesses.extend(osm_leads)
             except Exception as e:
-                print(f"  [ERROR] OpenStreetMap discovery failed for {city}/{category}: {e}")
+                print(f"  [ERROR] OpenStreetMap discovery failed for {city}/{category}: {e}", flush=True)
 
     return all_businesses
 
@@ -47,7 +47,7 @@ def analyze_and_score(businesses: List[Dict], run_performance_check: bool = True
     scored = []
     for i, biz in enumerate(businesses, 1):
         website = biz.get("website", "").strip()
-        print(f"[{i}/{len(businesses)}] Analyzing: {biz.get('business_name')} ({biz.get('city')})")
+        print(f"[{i}/{len(businesses)}] Analyzing: {biz.get('business_name')} ({biz.get('city')})", flush=True)
 
         if not website:
             scored.append(lead_scorer.score_lead(biz))
@@ -57,6 +57,10 @@ def analyze_and_score(businesses: List[Dict], run_performance_check: bool = True
         perf = {}
         if run_performance_check and config.PAGESPEED_API_KEY and health.get("reachable") and not health.get("is_placeholder"):
             perf = performance_analyzer.analyze_performance(website, config.PAGESPEED_API_KEY)
+            if perf.get("error"):
+                print(f"  [WARN] PageSpeed check failed for {website}: {perf['error']}", flush=True)
+            elif perf.get("performance_score") is not None:
+                print(f"  [INFO] PageSpeed score for {website}: {perf['performance_score']}/100", flush=True)
             time.sleep(config.REQUEST_DELAY)
 
         scored.append(lead_scorer.score_lead(biz, health, perf))
@@ -72,14 +76,14 @@ def run_full_pipeline(cities: List[str], categories: List[str], max_results: int
     (does NOT export to Excel — caller decides what to do with results).
     """
     businesses = discover_all(cities, categories, max_results)
-    print(f"\n[TOTAL DISCOVERED] {len(businesses)} businesses (before dedup)")
+    print(f"\n[TOTAL DISCOVERED] {len(businesses)} businesses (before dedup)", flush=True)
 
     businesses = deduplicate(businesses)
-    print(f"[AFTER DEDUP] {len(businesses)} unique businesses\n")
+    print(f"[AFTER DEDUP] {len(businesses)} unique businesses\n", flush=True)
 
     scored = analyze_and_score(businesses, run_performance_check=run_performance)
 
     qualified = [s for s in scored if lead_scorer.is_qualified_lead(s)]
-    print(f"\n[QUALIFIED LEADS] {len(qualified)} out of {len(scored)} businesses")
+    print(f"\n[QUALIFIED LEADS] {len(qualified)} out of {len(scored)} businesses", flush=True)
 
     return qualified
