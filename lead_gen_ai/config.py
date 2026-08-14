@@ -48,6 +48,15 @@ PAGESPEED_API_KEY = os.getenv("PAGESPEED_API_KEY", "")
 # Free key: https://console.groq.com/keys
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 
+# Geoapify Places API — PRIMARY discovery source. Free tier: 3,000
+# requests/day, no credit card required. Same underlying OpenStreetMap
+# data as before, but served from Geoapify's own dedicated
+# infrastructure rather than the public Overpass mirrors — which
+# frequently reject connections from cloud-hosting IP ranges
+# (including Render's), causing silent 0-result discovery.
+# Get a free key: https://myprojects.geoapify.com/ -> Create project -> API Keys
+GEOAPIFY_API_KEY = os.getenv("GEOAPIFY_API_KEY", "")
+
 # ---------------------------------------------------------------------
 # TARGET CITIES (multi-city scope)
 # ---------------------------------------------------------------------
@@ -112,6 +121,29 @@ OSM_CATEGORY_TAGS = {
     "yoga studio": [("leisure", "fitness_centre"), ("sport", "yoga")],
 }
 
+# ---------------------------------------------------------------------
+# GEOAPIFY CATEGORY MAPPING (primary discovery source)
+# ---------------------------------------------------------------------
+# Geoapify uses its own hierarchical category taxonomy (still backed
+# by OpenStreetMap data underneath). Full list:
+# https://apidocs.geoapify.com/docs/places/#categories
+GEOAPIFY_CATEGORY_MAP = {
+    "restaurant": "catering.restaurant",
+    "beauty salon": "service.beauty.hairdresser",
+    "gym": "sport.fitness.gym",
+    "dental clinic": "healthcare.dentist",
+    "boutique clothing store": "commercial.clothing.clothes",
+    "real estate agent": "office.estate_agent",
+    "interior designer": "commercial.furniture_and_interior",  # closest available match
+    "photographer": "service.photographer",
+    "event planner": "commercial.wedding",  # closest available match
+    "electrician": "service.electrician",
+    "coaching institute": "education.language_school",
+    "car repair shop": "service.vehicle.repair.car",
+    "bakery": "commercial.food_and_drink.bakery",
+    "yoga studio": "sport.fitness.fitness_centre",  # closest available match, no dedicated "yoga" category
+}
+
 # Overpass API is a shared free public resource — be gentle to avoid
 # getting temporarily rate-limited. Multiple public mirrors listed as
 # fallback since the main instance can be slow/overloaded.
@@ -163,6 +195,15 @@ PERFORMANCE_SCORE_THRESHOLD = 50
 
 # If a site takes longer than this to respond, treat it as "slow/broken"
 RESPONSE_TIME_THRESHOLD_SECONDS = 4.0
+
+# Wayback Machine: if a site hasn't changed in this many days, flag it
+# as "digitally abandoned" — strong signal the business isn't
+# maintaining their site even though it's technically still online.
+WAYBACK_STALE_DAYS = 730  # ~2 years
+
+# WHOIS: flag domains expiring within this many days (business may not
+# realize their site is about to go dark).
+DOMAIN_EXPIRY_WARNING_DAYS = 60
 
 # Known "placeholder" / parked-domain signals we treat as "no real website"
 PLACEHOLDER_SIGNALS = [
