@@ -21,11 +21,19 @@ def score_lead(
     business: Dict,
     website_health: Optional[Dict] = None,
     performance: Optional[Dict] = None,
+    wayback: Optional[Dict] = None,
+    domain: Optional[Dict] = None,
+    crux: Optional[Dict] = None,
+    safe_browsing: Optional[Dict] = None,
 ) -> Dict:
     """
     business: dict from discovery module (has 'website' key, may be "")
     website_health: dict from website_checker.check_website_health (or None if no site)
     performance: dict from performance_analyzer.analyze_performance (or None if no site)
+    wayback: dict from wayback_checker.check_last_updated (or None)
+    domain: dict from domain_checker.check_domain_expiry (or None)
+    crux: dict from crux_checker.check_crux (or None)
+    safe_browsing: dict from safe_browsing_checker.check_safe_browsing (or None)
 
     Returns the business dict enriched with:
         lead_category, lead_score, lead_reason
@@ -44,6 +52,10 @@ def score_lead(
     # --- Case 2: Website exists — evaluate its health ---
     website_health = website_health or {}
     performance = performance or {}
+    wayback = wayback or {}
+    domain = domain or {}
+    crux = crux or {}
+    safe_browsing = safe_browsing or {}
 
     if not website_health.get("reachable", False):
         enriched["lead_category"] = "NO_WEBSITE"  # effectively dead site == no website
@@ -59,7 +71,16 @@ def score_lead(
         enriched["website_status"] = "Placeholder"
         return enriched
 
-    # Site is reachable and real -> check performance quality
+    # A flagged (malware/phishing) site is a serious, urgent issue on its own
+    if safe_browsing.get("is_flagged"):
+        enriched["lead_category"] = "POOR_WEBSITE"
+        enriched["lead_score"] = 95
+        threats = ", ".join(safe_browsing.get("threat_types", [])) or "security threat"
+        enriched["lead_reason"] = f"Website flagged by Google Safe Browsing ({threats}) — urgent trust/security issue."
+        enriched["website_status"] = "Flagged (unsafe)"
+        return enriched
+
+    # Site is reachable and real -> check performance + freshness + trust signals
     perf_score = performance.get("performance_score")
     issues = []
 
@@ -80,10 +101,22 @@ def score_lead(
     if status_code and status_code >= 400:
         issues.append(f"HTTP error {status_code}")
 
+    if wayback.get("is_stale"):
+        years = round(wayback["age_days"] / 365, 1)
+        issues.append(f"not updated in {years} years (last change: {wayback.get('last_snapshot_date')})")
+
+    if domain.get("is_expired"):
+        issues.append(f"domain already expired ({domain.get('expiry_date')})")
+    elif domain.get("is_expiring_soon"):
+        issues.append(f"domain expires in {domain.get('days_until_expiry')} days")
+
+    if crux.get("is_poor_experience"):
+        issues.append("poor real-world user experience (Chrome UX Report)")
+
     if issues:
         enriched["lead_category"] = "POOR_WEBSITE"
         # Score scales with number/severity of issues, capped at 80
-        enriched["lead_score"] = min(80, 40 + len(issues) * 12)
+        enriched["lead_score"] = min(80, 40 + len(issues) * 10)
         enriched["lead_reason"] = "Underperforming site: " + ", ".join(issues)
         enriched["website_status"] = "Poor"
     else:
