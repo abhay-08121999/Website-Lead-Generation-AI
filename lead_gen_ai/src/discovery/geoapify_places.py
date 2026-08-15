@@ -21,6 +21,7 @@ import requests
 from typing import List, Dict
 
 import config
+from src.discovery.geocoding import get_city_bbox
 
 PLACES_URL = "https://api.geoapify.com/v2/places"
 
@@ -61,9 +62,9 @@ def discover_leads_for_city_category(city: str, category: str, max_results: int 
         print(f"  [WARN] No Geoapify category mapping for '{category}' — skipping.", flush=True)
         return []
 
-    bbox = config.CITY_BBOXES.get(city)
+    bbox = get_city_bbox(city)
     if not bbox:
-        print(f"  [WARN] No bounding box configured for '{city}' — skipping.", flush=True)
+        print(f"  [WARN] Could not resolve bounding box for '{city}' — skipping.", flush=True)
         return []
 
     south, west, north, east = bbox
