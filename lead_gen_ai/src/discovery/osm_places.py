@@ -36,67 +36,9 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 import config
+from src.discovery.geocoding import get_city_bbox
 
 HEADERS = {"User-Agent": config.OSM_USER_AGENT}
-
-# Cache city -> bounding box so we only geocode each city once per run
-_city_bbox_cache = {}
-
-
-def geocode_city(city: str) -> Optional[Tuple[float, float, float, float]]:
-    """
-    Resolves a city name to a bounding box (south, west, north, east).
-
-    1. Check the hardcoded config.CITY_BBOXES dict first (instant,
-       no network call, no dependency on Nominatim's availability).
-    2. Fall back to live Nominatim geocoding only for cities not in
-       that dict (e.g. if the user passes --city for somewhere new).
-    """
-    if city in config.CITY_BBOXES:
-        return config.CITY_BBOXES[city]
-
-    if city in _city_bbox_cache:
-        return _city_bbox_cache[city]
-
-    print(f"  [INFO] '{city}' not in hardcoded city list — trying live geocoding via Nominatim...", flush=True)
-
-    params = {
-        "city": city,
-        "country": "India",
-        "format": "json",
-        "limit": 1,
-    }
-
-    try:
-        resp = requests.get(config.NOMINATIM_URL, params=params, headers=HEADERS, timeout=15)
-        time.sleep(config.NOMINATIM_REQUEST_DELAY)
-    except requests.RequestException as e:
-        print(f"  [WARN] Nominatim geocoding failed for '{city}': {e}", flush=True)
-        return None
-
-    if resp.status_code != 200:
-        print(f"  [WARN] Nominatim returned status {resp.status_code} for '{city}'. "
-              f"Tip: add '{city}' to CITY_BBOXES in config.py to skip geocoding entirely.", flush=True)
-        return None
-
-    try:
-        results = resp.json()
-    except ValueError:
-        print(f"  [WARN] Nominatim returned non-JSON response for '{city}'", flush=True)
-        return None
-
-    if not results:
-        print(f"  [WARN] Nominatim found no match for city '{city}'", flush=True)
-        return None
-
-    bbox = results[0].get("boundingbox")  # [south, north, west, east] as strings
-    if not bbox or len(bbox) != 4:
-        return None
-
-    south, north, west, east = (float(v) for v in bbox)
-    bbox_tuple = (south, west, north, east)
-    _city_bbox_cache[city] = bbox_tuple
-    return bbox_tuple
 
 
 def _build_query(bbox: Tuple[float, float, float, float], tag_pairs: List[tuple], limit: int) -> str:
@@ -199,7 +141,7 @@ def discover_leads_for_city_category(city: str, category: str, max_results: int 
         print(f"  [WARN] No OSM tag mapping for category '{category}' — skipping.", flush=True)
         return []
 
-    bbox = geocode_city(city)
+    bbox = get_city_bbox(city)
     if not bbox:
         print(f"  [WARN] Could not resolve bounding box for '{city}' — skipping.", flush=True)
         return []
