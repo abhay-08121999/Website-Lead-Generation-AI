@@ -4,9 +4,6 @@ website_checker.py
 For businesses that DO have a website listed, this module checks
 whether that website is actually "real and working" or effectively
 as-good-as-no-website (dead domain, parked page, broken SSL, etc).
-
-This is the key logic that turns "has a website field" into an
-honest "has a WORKING website" signal.
 """
 
 import time
@@ -33,6 +30,8 @@ def check_website_health(url: str) -> Dict:
             "is_placeholder": bool,
             "has_ssl": bool,
             "issue_summary": str,
+            "body_snippet": str,   # first ~5000 chars of page HTML, lowercased —
+                                    # reused by tech_stack_checker to avoid a second fetch
         }
     """
     result = {
@@ -42,6 +41,7 @@ def check_website_health(url: str) -> Dict:
         "is_placeholder": False,
         "has_ssl": url.strip().lower().startswith("https://"),
         "issue_summary": "",
+        "body_snippet": "",
     }
 
     if not url:
@@ -57,7 +57,9 @@ def check_website_health(url: str) -> Dict:
         result["status_code"] = resp.status_code
         result["response_time"] = round(elapsed, 2)
 
-        body_lower = resp.text.lower()[:5000]  # only need to scan the head/top of page
+        body_lower = resp.text.lower()[:5000]
+        result["body_snippet"] = body_lower
+
         for signal in config.PLACEHOLDER_SIGNALS:
             if signal in body_lower:
                 result["is_placeholder"] = True
