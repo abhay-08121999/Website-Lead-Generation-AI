@@ -1,21 +1,14 @@
 """
 query_parser.py
 ----------------
-Turns a free-text query like "find beauty salons without website in
-Jaipur" into structured {city, category, limit} params the pipeline
-can run on.
-
-Uses Groq's free-tier API (llama-3.3-70b-versatile) — same LLM
-provider used elsewhere in this project's ecosystem. If no Groq key
-is configured, or the call fails for any reason, falls back to
-simple keyword matching against the known city/category lists so the
-feature still works without any AI key.
+Turns a free-text query into structured {city, category, limit}
+params. Uses Groq's free-tier API with a keyword-matching fallback.
 """
 
 import json
 import re
 import requests
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 import config
 
@@ -23,7 +16,6 @@ GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 
 def parse_query_fallback(text: str, cities: List[str], categories: List[str]) -> Dict:
-    """Simple, dependency-free keyword matcher. Used when no AI key is set or the AI call fails."""
     text_lower = text.lower()
 
     matched_city = next((c for c in cities if c.lower() in text_lower), None)
@@ -36,10 +28,6 @@ def parse_query_fallback(text: str, cities: List[str], categories: List[str]) ->
 
 
 def parse_query_with_ai(text: str, cities: List[str], categories: List[str]) -> Dict:
-    """
-    Returns: {"city": str or None, "category": str or None, "limit": int}
-    Falls back to keyword matching if no API key or on any error.
-    """
     if not config.GROQ_API_KEY:
         return parse_query_fallback(text, cities, categories)
 
@@ -48,7 +36,7 @@ def parse_query_with_ai(text: str, cities: List[str], categories: List[str]) -> 
         f"Available cities (pick the closest match, or null if none fit): {cities}\n"
         f"Available categories (pick the closest match, or null if none fit): {categories}\n"
         'Respond with ONLY valid JSON, no markdown fences, no explanation: '
-        '{"city": "<city or null>", "category": "<category or null>", "limit": <integer, default 10>}'
+        '{"city": "<city or null>", "category": "<category or null>", "limit": <integer, default 20>}'
     )
 
     try:
@@ -71,16 +59,13 @@ def parse_query_with_ai(text: str, cities: List[str], categories: List[str]) -> 
         )
         data = resp.json()
         content = data["choices"][0]["message"]["content"].strip()
-
-        # Strip markdown code fences if the model added them anyway
         content = re.sub(r"^```(json)?|```$", "", content, flags=re.MULTILINE).strip()
 
         parsed = json.loads(content)
         city = parsed.get("city") or None
         category = parsed.get("category") or None
-        limit = int(parsed.get("limit") or 10)
+        limit = int(parsed.get("limit") or 20)
 
-        # Guard against the model hallucinating a city/category not in our lists
         if city and city not in cities:
             city = next((c for c in cities if c.lower() == str(city).lower()), None)
         if category and category not in categories:
