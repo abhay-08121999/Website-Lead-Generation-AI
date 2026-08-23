@@ -24,7 +24,7 @@ load_dotenv()
 # though the server itself is fine. Forcing IPv4 resolution here
 # (applies globally, since this module is imported before any HTTP
 # calls happen anywhere in the app) fixes that class of failure for
-# Overpass, Nominatim, PageSpeed, and Groq calls alike.
+# Overpass, Nominatim, PageSpeed, Geoapify, and Groq calls alike.
 def _force_ipv4():
     return socket.AF_INET
 
@@ -33,13 +33,12 @@ _urllib3_cn.allowed_gai_family = _force_ipv4
 # ---------------------------------------------------------------------
 # API KEYS
 # ---------------------------------------------------------------------
-# Discovery (OpenStreetMap / Overpass API) needs NO key — it's fully
-# free and open, no billing account required. See src/discovery/osm_places.py.
-
 # Google PageSpeed Insights API — used only for website performance
 # scoring. Get a free key at https://console.cloud.google.com/ ->
 # enable "PageSpeed Insights API" -> Credentials -> Create API Key.
 # This API does NOT require a linked billing account (unlike Places API).
+# The same key is reused for Chrome UX Report + Safe Browsing (enable
+# those APIs too in the same GCP project).
 PAGESPEED_API_KEY = os.getenv("PAGESPEED_API_KEY", "")
 
 # Groq API — used ONLY by the web UI's "AI query" free-text search box
@@ -56,6 +55,12 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 # (including Render's), causing silent 0-result discovery.
 # Get a free key: https://myprojects.geoapify.com/ -> Create project -> API Keys
 GEOAPIFY_API_KEY = os.getenv("GEOAPIFY_API_KEY", "")
+
+# Hunter.io Email Finder — OPTIONAL. Finds a contact email for a
+# business's domain. Free tier: 25 searches/month — quite limited,
+# so this is only called for businesses that already qualify as leads
+# (not for every business discovered). Free key: https://hunter.io/api-keys
+HUNTER_API_KEY = os.getenv("HUNTER_API_KEY", "")
 
 # ---------------------------------------------------------------------
 # TARGET CITIES (multi-city scope)
@@ -128,10 +133,7 @@ TARGET_CATEGORIES = [
 RESULTS_PER_QUERY = 20
 
 # ---------------------------------------------------------------------
-# OPENSTREETMAP CATEGORY -> TAG MAPPING (free discovery source, no
-# billing/card required). OSM tagging is community-driven and
-# inconsistent, so several tag pairs are tried per category and
-# results are merged.
+# OPENSTREETMAP CATEGORY -> TAG MAPPING (fallback discovery source)
 # ---------------------------------------------------------------------
 OSM_CATEGORY_TAGS = {
     "restaurant": [("amenity", "restaurant")],
@@ -153,14 +155,7 @@ OSM_CATEGORY_TAGS = {
 # ---------------------------------------------------------------------
 # GEOAPIFY CATEGORY MAPPING (primary discovery source)
 # ---------------------------------------------------------------------
-# Geoapify uses its own hierarchical category taxonomy (still backed
-# by OpenStreetMap data underneath). Full list:
 # https://apidocs.geoapify.com/docs/places/#categories
-#
-# Values can be a single category string, OR a comma-separated string
-# of multiple categories (Geoapify supports OR-matching across them)
-# — used for business types where no single exact category exists,
-# to widen the net and pull in more relevant results.
 GEOAPIFY_CATEGORY_MAP = {
     "restaurant": "catering.restaurant",
     "beauty salon": "service.beauty.hairdresser",
@@ -175,12 +170,38 @@ GEOAPIFY_CATEGORY_MAP = {
     "coaching institute": "education.language_school",
     "car repair shop": "service.vehicle.repair.car",
     "bakery": "commercial.food_and_drink.bakery",
-    "yoga studio": "sport.fitness.fitness_centre",  # closest available match, no dedicated "yoga" category
+    "yoga studio": "sport.fitness.fitness_centre",  # closest available match
 }
 
-# Overpass API is a shared free public resource — be gentle to avoid
-# getting temporarily rate-limited. Multiple public mirrors listed as
-# fallback since the main instance can be slow/overloaded.
+# ---------------------------------------------------------------------
+# WEBSITE PERFORMANCE THRESHOLDS
+# ---------------------------------------------------------------------
+PERFORMANCE_SCORE_THRESHOLD = 50
+RESPONSE_TIME_THRESHOLD_SECONDS = 4.0
+
+# Wayback Machine: if a site hasn't changed in this many days, flag it
+# as "digitally abandoned".
+WAYBACK_STALE_DAYS = 730  # ~2 years
+
+# WHOIS / SSL: flag domains or certs expiring within this many days.
+DOMAIN_EXPIRY_WARNING_DAYS = 60
+
+PLACEHOLDER_SIGNALS = [
+    "domain is for sale",
+    "this domain may be for sale",
+    "buy this domain",
+    "godaddy.com/domains",
+    "coming soon",
+    "under construction",
+    "index of /",
+    "default web page",
+    "apache2 debian default page",
+    "welcome to nginx",
+]
+
+# ---------------------------------------------------------------------
+# OVERPASS (fallback discovery — used only if Geoapify returns nothing)
+# ---------------------------------------------------------------------
 OVERPASS_REQUEST_DELAY = 6.0
 OVERPASS_URLS = [
     "https://overpass-api.de/api/interpreter",
@@ -193,12 +214,6 @@ OVERPASS_TIMEOUT_SECONDS = 25
 # ---------------------------------------------------------------------
 # HARDCODED CITY BOUNDING BOXES (south, west, north, east)
 # ---------------------------------------------------------------------
-# Public Nominatim geocoding is unreliable (rate-limited or outright
-# blocked with 403s depending on network/ISP). Since our target city
-# list is fixed, we hardcode approximate bounding boxes for them —
-# no geocoding API call needed at all for these. Nominatim is only
-# used as a fallback if someone passes --city with a city not in this
-# dict.
 CITY_BBOXES = {
     "Jaipur":     (26.75, 75.65, 27.05, 75.95),
     "Delhi":      (28.40, 76.83, 28.90, 77.35),
@@ -264,40 +279,7 @@ NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 NOMINATIM_REQUEST_DELAY = 1.0  # Nominatim policy: max 1 request/sec
 
 # Overpass/OSM usage policy asks for an identifying User-Agent.
-# Edit this to include your own contact info before heavy use.
 OSM_USER_AGENT = "LeadGenAI/1.0 (student project; contact: your-email@example.com)"
-
-# ---------------------------------------------------------------------
-# WEBSITE PERFORMANCE THRESHOLDS
-# ---------------------------------------------------------------------
-# PageSpeed score is 0-100. Below this => "poorly performing" lead.
-PERFORMANCE_SCORE_THRESHOLD = 50
-
-# If a site takes longer than this to respond, treat it as "slow/broken"
-RESPONSE_TIME_THRESHOLD_SECONDS = 4.0
-
-# Wayback Machine: if a site hasn't changed in this many days, flag it
-# as "digitally abandoned" — strong signal the business isn't
-# maintaining their site even though it's technically still online.
-WAYBACK_STALE_DAYS = 730  # ~2 years
-
-# WHOIS: flag domains expiring within this many days (business may not
-# realize their site is about to go dark).
-DOMAIN_EXPIRY_WARNING_DAYS = 60
-
-# Known "placeholder" / parked-domain signals we treat as "no real website"
-PLACEHOLDER_SIGNALS = [
-    "domain is for sale",
-    "this domain may be for sale",
-    "buy this domain",
-    "godaddy.com/domains",
-    "coming soon",
-    "under construction",
-    "index of /",
-    "default web page",
-    "apache2 debian default page",
-    "welcome to nginx",
-]
 
 # ---------------------------------------------------------------------
 # OUTPUT
@@ -305,6 +287,5 @@ PLACEHOLDER_SIGNALS = [
 OUTPUT_DIR = "leads_output"
 OUTPUT_FILENAME = "website_leads.xlsx"
 
-# Politeness delay between outbound requests (seconds) to avoid
-# hammering sites / getting IP-blocked
+# Politeness delay between outbound requests (seconds)
 REQUEST_DELAY = 1.5
