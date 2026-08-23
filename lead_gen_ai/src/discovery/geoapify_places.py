@@ -3,17 +3,12 @@ geoapify_places.py
 -------------------
 PRIMARY discovery source — Geoapify Places API.
 
-Why Geoapify instead of calling Overpass directly:
-- Same underlying data (OpenStreetMap), so coverage/accuracy is
-  unchanged from before.
-- Requests go to Geoapify's own dedicated infrastructure, not the
-  shared public overpass-api.de/mirrors — those public mirrors
-  actively reject connections from many cloud-hosting IP ranges
-  (Render's included), causing silent 0-result discovery in
-  production even though everything works fine locally.
-- Free tier: 3,000 requests/day, no credit card required.
-  Get a key: https://myprojects.geoapify.com/
+Requests go to Geoapify's own dedicated infrastructure, not the
+shared public Overpass mirrors — those reject connections from many
+cloud-hosting IP ranges (Render's included), causing silent 0-result
+discovery in production even though everything works fine locally.
 
+Free tier: 3,000 requests/day, no credit card required.
 Docs: https://apidocs.geoapify.com/docs/places/
 """
 
@@ -27,11 +22,6 @@ PLACES_URL = "https://api.geoapify.com/v2/places"
 
 
 def _extract_contact_field(props: Dict, field: str) -> str:
-    """
-    Geoapify sometimes puts contact info as a top-level property,
-    sometimes nested under 'contact', and sometimes only in the raw
-    OSM tags under 'datasource.raw'. Check all three, in that order.
-    """
     if props.get(field):
         return props[field]
 
@@ -47,12 +37,6 @@ def _extract_contact_field(props: Dict, field: str) -> str:
 
 
 def discover_leads_for_city_category(city: str, category: str, max_results: int = 20) -> List[Dict]:
-    """
-    Full pipeline for one (city, category): map to Geoapify category
-    -> query Places API -> normalize into flat lead dicts. Fails
-    gracefully (returns []) so one bad city/category doesn't kill
-    the whole run.
-    """
     if not config.GEOAPIFY_API_KEY:
         print("  [WARN] GEOAPIFY_API_KEY not set — cannot discover businesses.", flush=True)
         return []
@@ -68,13 +52,20 @@ def discover_leads_for_city_category(city: str, category: str, max_results: int 
         return []
 
     south, west, north, east = bbox
-    # Geoapify rect filter format is "rect:lon1,lat1,lon2,lat2" i.e. west,south,east,north
     rect = f"{west},{south},{east},{north}"
+
+    # Request a small buffer above what's needed — even with the
+    # "named" condition filtering server-side, Geoapify occasionally
+    # includes entries with only a generic/empty display name that
+    # still get skipped client-side below. The buffer compensates so
+    # we're more likely to hit the caller's requested count.
+    request_limit = min(max_results + 10, 200)
 
     params = {
         "categories": geo_category,
+        "conditions": "named",  # server-side filter: only places with a real name set
         "filter": f"rect:{rect}",
-        "limit": max_results,
+        "limit": request_limit,
         "apiKey": config.GEOAPIFY_API_KEY,
     }
 
@@ -98,6 +89,9 @@ def discover_leads_for_city_category(city: str, category: str, max_results: int 
     leads = []
 
     for feature in features:
+        if len(leads) >= max_results:
+            break
+
         props = feature.get("properties", {})
         name = props.get("name", "")
         if not name:
