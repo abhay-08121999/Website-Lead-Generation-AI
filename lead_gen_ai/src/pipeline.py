@@ -1,9 +1,8 @@
 """
 pipeline.py
 -----------
-Core discover -> analyze -> score pipeline, extracted so both the
-CLI (main.py) and the Flask web app (app.py) can call the exact same
-logic without duplicating code.
+Core discover -> analyze -> score pipeline, shared by the CLI
+(main.py) and the Flask web app (app.py).
 """
 
 import time
@@ -14,6 +13,7 @@ from src.discovery import geoapify_places, osm_places
 from src.analysis import (
     website_checker, performance_analyzer,
     wayback_checker, domain_checker, crux_checker, safe_browsing_checker,
+    ssl_checker, tech_stack_checker, email_finder,
 )
 from src.scoring import lead_scorer
 
@@ -32,8 +32,6 @@ def discover_all(cities: List[str], categories: List[str], max_results: int) -> 
                 print(f"  [ERROR] Geoapify discovery failed for {city}/{category}: {e}", flush=True)
 
             # Fallback to direct Overpass only if Geoapify returned nothing
-            # (e.g. no key configured, or a transient API issue) — keeps
-            # the pipeline working even without a Geoapify key.
             if not leads:
                 try:
                     osm_leads = osm_places.discover_leads_for_city_category(city, category, max_results)
@@ -71,8 +69,8 @@ def analyze_and_score(businesses: List[Dict], run_performance_check: bool = True
 
         health = website_checker.check_website_health(website)
 
-        # If the site is dead or a placeholder, no point running the
-        # remaining (slower/rate-limited) checks — it's already a lead.
+        # Dead or placeholder sites are already a lead — skip the
+        # remaining (slower / quota-limited) checks entirely.
         if not health.get("reachable") or health.get("is_placeholder"):
             scored.append(lead_scorer.score_lead(biz, health))
             continue
@@ -99,6 +97,16 @@ def analyze_and_score(businesses: List[Dict], run_performance_check: bool = True
         elif domain.get("is_expiring_soon") or domain.get("is_expired"):
             print(f"  [INFO] {website} domain expiry: {domain.get('expiry_date')}", flush=True)
 
+        ssl_info = ssl_checker.check_ssl_expiry(website)
+        if ssl_info.get("error"):
+            print(f"  [WARN] SSL check note for {website}: {ssl_info['error']}", flush=True)
+        elif ssl_info.get("is_expiring_soon") or ssl_info.get("is_expired"):
+            print(f"  [INFO] {website} SSL expiry: {ssl_info.get('expiry_date')}", flush=True)
+
+        tech_stack = tech_stack_checker.detect_tech_stack(health.get("body_snippet", ""))
+        if tech_stack.get("is_template_builder"):
+            print(f"  [INFO] {website} built on {tech_stack.get('builder')}", flush=True)
+
         if config.PAGESPEED_API_KEY:  # CrUX and Safe Browsing use the same Google API key
             crux = crux_checker.check_crux(website, config.PAGESPEED_API_KEY)
             if crux.get("error"):
@@ -110,7 +118,19 @@ def analyze_and_score(businesses: List[Dict], run_performance_check: bool = True
             elif safe_browsing.get("is_flagged"):
                 print(f"  [WARN] {website} flagged by Safe Browsing!", flush=True)
 
-        scored.append(lead_scorer.score_lead(biz, health, perf, wayback, domain, crux, safe_browsing))
+        scored_biz = lead_scorer.score_lead(biz, health, perf, wayback, domain, crux, safe_browsing, ssl_info, tech_stack)
+
+        # Email lookup is quota-limited (Hunter.io free tier: 25/month) —
+        # only spend it on businesses that already qualify as a lead.
+        if config.HUNTER_API_KEY and lead_scorer.is_qualified_lead(scored_biz):
+            email_result = email_finder.find_email(website, config.HUNTER_API_KEY)
+            if email_result.get("email"):
+                scored_biz["contact_email"] = email_result["email"]
+                print(f"  [INFO] Found contact email for {website}: {email_result['email']}", flush=True)
+            elif email_result.get("error"):
+                print(f"  [WARN] Email lookup failed for {website}: {email_result['error']}", flush=True)
+
+        scored.append(scored_biz)
 
     return scored
 
@@ -119,8 +139,7 @@ def run_full_pipeline(cities: List[str], categories: List[str], max_results: int
                        run_performance: bool = True) -> List[Dict]:
     """
     Full end-to-end pipeline: discover -> dedup -> analyze -> score ->
-    filter to qualified leads only. Returns the qualified leads list
-    (does NOT export to Excel — caller decides what to do with results).
+    filter to qualified leads only.
     """
     businesses = discover_all(cities, categories, max_results)
     print(f"\n[TOTAL DISCOVERED] {len(businesses)} businesses (before dedup)", flush=True)
