@@ -129,8 +129,16 @@ TARGET_CATEGORIES = [
     "yoga studio",
 ]
 
-# How many results to pull per (city, category) combo
-RESULTS_PER_QUERY = 20
+# How many results to pull per (city, category) combo.
+# CLI batch runs (main.py) have no HTTP timeout, so this can be pushed
+# higher for those. The web UI clamps its own max separately (see
+# app.py / templates/index.html) to stay within Render's request
+# timeout, since each business now runs through ~8 analysis checks
+# sequentially (PageSpeed, Wayback, WHOIS, CrUX, Safe Browsing, email
+# finder, SSL, tech-stack) — more results = proportionally more time.
+# Geoapify itself supports up to 500 results in a single request, so
+# this is a deliberate speed/timeout trade-off, not an API limitation.
+RESULTS_PER_QUERY = 30
 
 # ---------------------------------------------------------------------
 # OPENSTREETMAP CATEGORY -> TAG MAPPING (fallback discovery source)
