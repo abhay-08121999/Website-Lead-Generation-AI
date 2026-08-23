@@ -3,14 +3,8 @@ app.py
 ------
 Flask web frontend for the Website Lead Generation AI.
 
-Two ways to query, both hitting the same pipeline:
-  1. AI free-text box ("find beauty salons without website in Jaipur")
-     -> parsed via Groq (or keyword fallback) -> structured params
-  2. Structured dropdown form (city + category + limit)
-
 Run:
     python app.py
-Then open http://127.0.0.1:5000 in a browser.
 """
 
 import os
@@ -27,13 +21,12 @@ from src.nlp.query_parser import parse_query_with_ai
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-only-change-this-in-production")
 
-os.makedirs(config.OUTPUT_DIR, exist_ok=True)  # ensure this exists even when run via gunicorn (not just __main__)
+os.makedirs(config.OUTPUT_DIR, exist_ok=True)
 
 CATEGORY_LIST = list(config.OSM_CATEGORY_TAGS.keys())
 
 
 def _safe_filename(text: str) -> str:
-    """Turns arbitrary text into a filesystem-safe filename fragment."""
     return re.sub(r"[^a-zA-Z0-9_-]", "_", text.strip())
 
 
@@ -53,7 +46,7 @@ def search():
             return redirect(url_for("index"))
 
         parsed = parse_query_with_ai(text, config.TARGET_CITIES, CATEGORY_LIST)
-        city, category, limit = parsed.get("city"), parsed.get("category"), parsed.get("limit", 10)
+        city, category, limit = parsed.get("city"), parsed.get("category"), parsed.get("limit", 20)
 
         if not city or not category:
             flash(
@@ -67,7 +60,7 @@ def search():
         city = request.form.get("city", "").strip()
         category = request.form.get("category", "").strip()
         try:
-            limit = int(request.form.get("limit", 10))
+            limit = int(request.form.get("limit", 20))
         except ValueError:
             limit = 10
 
@@ -75,7 +68,7 @@ def search():
             flash("Please select both a city and a category.")
             return redirect(url_for("index"))
 
-    limit = max(1, min(limit, 50))  # sane bounds
+    limit = max(1, min(limit, 50))
 
     leads = run_full_pipeline(
         [city], [category], limit,
@@ -95,7 +88,6 @@ def download(filename):
 
 
 if __name__ == "__main__":
-    os.makedirs(config.OUTPUT_DIR, exist_ok=True)
     port = int(os.getenv("PORT", 5000))
     debug_mode = os.getenv("FLASK_DEBUG", "true").lower() == "true"
     app.run(host="0.0.0.0", port=port, debug=debug_mode)
