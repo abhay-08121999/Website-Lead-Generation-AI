@@ -170,15 +170,15 @@ GEOAPIFY_CATEGORY_MAP = {
     "gym": "sport.fitness.gym",
     "dental clinic": "healthcare.dentist",
     "boutique clothing store": "commercial.clothing.clothes",
-    "real estate agent": "office.estate_agent",
+    "real estate agent": "office.estate_agent,service.estate_agent",
     "interior designer": "commercial.furniture_and_interior,office.architect",  # no exact match — widened
     "photographer": "service.photographer",
-    "event planner": "commercial.wedding",  # closest available match
+    "event planner": "commercial.wedding,activity.events_venue",  # no exact match — widened
     "electrician": "service.electrician",
-    "coaching institute": "education.language_school",
+    "coaching institute": "education.language_school,education.college",  # widened for exam-prep/coaching
     "car repair shop": "service.vehicle.repair.car",
     "bakery": "commercial.food_and_drink.bakery",
-    "yoga studio": "sport.fitness.fitness_centre",  # closest available match
+    "yoga studio": "sport.fitness.fitness_centre,sport.fitness",  # no exact "yoga" category — widened
 }
 
 # ---------------------------------------------------------------------
