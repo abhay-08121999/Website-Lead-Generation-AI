@@ -9,7 +9,7 @@ import time
 from typing import List, Dict
 
 import config
-from src.discovery import geoapify_places, here_places, osm_places
+from src.discovery import geoapify_places, here_places, osm_places, duckduckgo_finder
 from src.analysis import (
     website_checker, performance_analyzer,
     wayback_checker, domain_checker, crux_checker, safe_browsing_checker,
@@ -79,6 +79,23 @@ def analyze_and_score(businesses: List[Dict], run_performance_check: bool = True
     for i, biz in enumerate(businesses, 1):
         website = biz.get("website", "").strip()
         print(f"[{i}/{len(businesses)}] Analyzing: {biz.get('business_name')} ({biz.get('city')})", flush=True)
+
+        # Optional, opt-in supplementary check (config.DUCKDUCKGO_ENABLED,
+        # default OFF): if no discovery source listed a website, ask
+        # DuckDuckGo's official Instant Answer API whether it recognizes
+        # this business as a known entity with an official site. Low
+        # recall by design — see duckduckgo_finder.py's legal note for
+        # why this stays inside DuckDuckGo's documented API rather than
+        # scraping their search results pages.
+        if not website and config.DUCKDUCKGO_ENABLED:
+            ddg_result = duckduckgo_finder.find_website(biz.get("business_name", ""), biz.get("city", ""))
+            if ddg_result.get("website"):
+                website = ddg_result["website"]
+                biz["website"] = website
+                biz["website_source"] = ddg_result["source"]
+                print(f"  [INFO] DuckDuckGo found a website for {biz.get('business_name')}: {website}", flush=True)
+            elif ddg_result.get("error"):
+                print(f"  [WARN] DuckDuckGo lookup failed for {biz.get('business_name')}: {ddg_result['error']}", flush=True)
 
         if not website:
             scored.append(lead_scorer.score_lead(biz))
