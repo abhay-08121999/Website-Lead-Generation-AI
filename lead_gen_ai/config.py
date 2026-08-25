@@ -56,6 +56,14 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 # Get a free key: https://myprojects.geoapify.com/ -> Create project -> API Keys
 GEOAPIFY_API_KEY = os.getenv("GEOAPIFY_API_KEY", "")
 
+# HERE Geocoding & Search API — SECONDARY discovery source, run
+# alongside Geoapify (not a fallback — a genuinely different,
+# proprietary POI database, not OpenStreetMap, so it can surface
+# businesses Geoapify/OSM don't have mapped). Free "Limited Plan":
+# 1,000 requests/day, no credit card required.
+# Get a free key: https://platform.here.com/ -> sign up -> REST API key
+HERE_API_KEY = os.getenv("HERE_API_KEY", "")
+
 # Hunter.io Email Finder — OPTIONAL. Finds a contact email for a
 # business's domain. Free tier: 25 searches/month — quite limited,
 # so this is only called for businesses that already qualify as leads
@@ -179,6 +187,29 @@ GEOAPIFY_CATEGORY_MAP = {
     "car repair shop": "service.vehicle.repair.car",
     "bakery": "commercial.food_and_drink.bakery",
     "yoga studio": "sport.fitness.fitness_centre,sport.fitness",  # no exact "yoga" category — widened
+}
+
+# ---------------------------------------------------------------------
+# HERE SEARCH TERMS (secondary discovery source)
+# ---------------------------------------------------------------------
+# HERE's /discover endpoint takes free-text search terms rather than
+# fixed category codes — simpler and more reliable than guessing at
+# HERE's numeric category taxonomy.
+HERE_SEARCH_TERMS = {
+    "restaurant": "restaurant",
+    "beauty salon": "beauty salon",
+    "gym": "gym fitness center",
+    "dental clinic": "dental clinic",
+    "boutique clothing store": "clothing boutique",
+    "real estate agent": "real estate agent",
+    "interior designer": "interior designer",
+    "photographer": "photographer",
+    "event planner": "event planner",
+    "electrician": "electrician",
+    "coaching institute": "coaching institute tuition classes",
+    "car repair shop": "car repair garage",
+    "bakery": "bakery",
+    "yoga studio": "yoga studio",
 }
 
 # ---------------------------------------------------------------------
