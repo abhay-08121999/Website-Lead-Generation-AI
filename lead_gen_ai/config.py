@@ -71,6 +71,35 @@ HERE_API_KEY = os.getenv("HERE_API_KEY", "")
 HUNTER_API_KEY = os.getenv("HUNTER_API_KEY", "")
 
 # ---------------------------------------------------------------------
+# DUCKDUCKGO WEBSITE LOOKUP (optional, opt-in, OFF by default)
+# ---------------------------------------------------------------------
+# DuckDuckGo does not publish a general-purpose search API. The only
+# endpoint they document and permit programmatic use of is the
+# Instant Answer API (https://duckduckgo.com/api) — free, keyless,
+# JSON. It returns knowledge-graph "instant answers" (an infobox
+# summary + official site link, when DuckDuckGo recognizes the query
+# as a known entity) — NOT ranked web search results.
+#
+# This is deliberately NOT a scraper of DuckDuckGo's HTML results
+# pages (html.duckduckgo.com/html/ and similar), which is how most
+# "duckduckgo-search"-style libraries work under the hood. Scraping
+# those pages is disallowed by DuckDuckGo's robots.txt for automated
+# clients and breaches their Terms of Service for bulk/automated
+# querying — real legal exposure for a tool used commercially. So
+# that approach is out of scope here, on purpose. See
+# src/discovery/duckduckgo_finder.py for the full explanation.
+#
+# Consequence of staying inside the legal API surface: recall is low.
+# The Instant Answer API mostly "knows" chains/franchises/well-known
+# institutions, not the small independent businesses this tool
+# mostly discovers — so treat any hit as a bonus, not a primary
+# source. It only runs as a supplementary check for businesses that
+# Geoapify/HERE/OSM already listed WITHOUT a website.
+DUCKDUCKGO_ENABLED = os.getenv("DUCKDUCKGO_ENABLED", "false").lower() == "true"
+DUCKDUCKGO_TIMEOUT_SECONDS = 10
+DUCKDUCKGO_REQUEST_DELAY = 1.0  # politeness delay between lookups
+
+# ---------------------------------------------------------------------
 # TARGET CITIES (multi-city scope)
 # ---------------------------------------------------------------------
 TARGET_CITIES = [
