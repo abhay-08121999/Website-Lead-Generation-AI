@@ -1,10 +1,3 @@
-/* ==========================================================================
-   LeadScope — design tokens
-   Theme: radar/signal scanner. "No website" reads as "no signal";
-   a poor website reads as "weak signal" — the visual language maps
-   directly onto what the product measures.
-   ========================================================================== */
-
 :root {
   --bg: #0A0E1A;
   --panel: #121729;
@@ -12,9 +5,9 @@
   --border: #232B47;
   --border-bright: #313B60;
 
-  --accent: #FFB020;       /* phosphor amber — sweep, primary actions */
+  --accent: #FFB020;
   --accent-dim: #7A5A22;
-  --danger: #FF5C5C;       /* no signal / hottest lead */
+  --danger: #FF5C5C;
   --success: #4ADE80;
 
   --text: #E9ECF5;
@@ -43,17 +36,8 @@ body {
 }
 
 a { color: inherit; }
-
 ::selection { background: var(--accent); color: #1A1300; }
-
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-/* ---------------------------------------------------------------------- */
-/* Layout                                                                   */
-/* ---------------------------------------------------------------------- */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .topbar {
   display: flex;
@@ -90,10 +74,6 @@ main { max-width: 960px; margin: 0 auto; padding: 0 1.5rem; }
   font-size: 0.72rem;
   color: var(--text-faint);
 }
-
-/* ---------------------------------------------------------------------- */
-/* Hero                                                                     */
-/* ---------------------------------------------------------------------- */
 
 .hero {
   display: grid;
@@ -134,7 +114,6 @@ main { max-width: 960px; margin: 0 auto; padding: 0 1.5rem; }
 }
 @media (max-width: 720px) { .hero p { margin: 0 auto; } }
 
-/* Radar sweep — signature element */
 .radar-wrap { width: 220px; height: 220px; position: relative; flex-shrink: 0; }
 
 .radar {
@@ -161,15 +140,9 @@ main { max-width: 960px; margin: 0 auto; padding: 0 1.5rem; }
   animation: sweep 4.5s linear infinite;
 }
 
-.radar-crosshair {
-  position: absolute; inset: 0;
-}
+.radar-crosshair { position: absolute; inset: 0; }
 .radar-crosshair::before,
-.radar-crosshair::after {
-  content: '';
-  position: absolute;
-  background: var(--border);
-}
+.radar-crosshair::after { content: ''; position: absolute; background: var(--border); }
 .radar-crosshair::before { left: 0; right: 0; top: 50%; height: 1px; }
 .radar-crosshair::after { top: 0; bottom: 0; left: 50%; width: 1px; }
 
@@ -194,10 +167,6 @@ main { max-width: 960px; margin: 0 auto; padding: 0 1.5rem; }
   .blip { animation: none; opacity: 0.85; }
 }
 
-/* ---------------------------------------------------------------------- */
-/* Console panel (query card)                                              */
-/* ---------------------------------------------------------------------- */
-
 .console {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -206,10 +175,7 @@ main { max-width: 960px; margin: 0 auto; padding: 0 1.5rem; }
   margin-bottom: 3rem;
 }
 
-.console-tabs {
-  display: flex;
-  border-bottom: 1px solid var(--border);
-}
+.console-tabs { display: flex; border-bottom: 1px solid var(--border); }
 
 .console-tab {
   flex: 1;
@@ -225,11 +191,7 @@ main { max-width: 960px; margin: 0 auto; padding: 0 1.5rem; }
   transition: color 0.15s, border-color 0.15s;
 }
 .console-tab:hover { color: var(--text); }
-.console-tab.active {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
-  background: var(--panel-2);
-}
+.console-tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--panel-2); }
 
 .console-body { padding: 1.75rem; }
 .console-pane { display: none; }
@@ -257,7 +219,6 @@ main { max-width: 960px; margin: 0 auto; padding: 0 1.5rem; }
   transition: border-color 0.15s;
 }
 .input:focus { border-color: var(--accent); outline: none; }
-
 .input::placeholder { color: var(--text-faint); }
 
 .form-row { display: grid; grid-template-columns: 1fr 1fr 90px; gap: 1rem; margin-bottom: 1.25rem; }
@@ -277,13 +238,7 @@ main { max-width: 960px; margin: 0 auto; padding: 0 1.5rem; }
 .btn:active { transform: translateY(1px); }
 .btn-primary { background: var(--accent); color: #1A1300; width: 100%; }
 .btn-primary:hover { filter: brightness(1.08); }
-.btn-ghost {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text-dim);
-  font-size: 0.78rem;
-  padding: 0.5rem 0.9rem;
-}
+.btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-dim); font-size: 0.78rem; padding: 0.5rem 0.9rem; }
 .btn-ghost:hover { color: var(--text); border-color: var(--border-bright); }
 .btn-success { background: var(--success); color: #06280F; }
 .btn-success:hover { filter: brightness(1.08); }
@@ -300,15 +255,10 @@ main { max-width: 960px; margin: 0 auto; padding: 0 1.5rem; }
   margin-bottom: 1.5rem;
 }
 
-/* Loading state */
 .scanning { display: none; align-items: center; gap: 0.75rem; margin-top: 1.5rem; font-family: var(--mono); font-size: 0.8rem; color: var(--text-dim); }
 .scanning.active { display: flex; }
 .scan-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse 1s ease-in-out infinite; }
 @keyframes pulse { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
-
-/* ---------------------------------------------------------------------- */
-/* Results / scan report                                                    */
-/* ---------------------------------------------------------------------- */
 
 .report-header {
   display: flex;
@@ -321,11 +271,7 @@ main { max-width: 960px; margin: 0 auto; padding: 0 1.5rem; }
   margin-bottom: 1.5rem;
 }
 
-.report-header h1 {
-  font-size: 1.6rem;
-  font-weight: 600;
-  margin: 0.25rem 0 0;
-}
+.report-header h1 { font-size: 1.6rem; font-weight: 600; margin: 0.25rem 0 0; }
 
 .stat-pill {
   font-family: var(--mono);
@@ -341,7 +287,6 @@ main { max-width: 960px; margin: 0 auto; padding: 0 1.5rem; }
 .legend span { display: inline-flex; align-items: center; gap: 0.4rem; }
 .legend .dot { width: 7px; height: 7px; border-radius: 50%; }
 
-/* Signal bars — the recurring lead-quality indicator */
 .signal { display: inline-flex; align-items: flex-end; gap: 2px; height: 14px; vertical-align: middle; }
 .signal .bar { width: 3px; border-radius: 1px; background: var(--border-bright); }
 .signal .bar:nth-child(1) { height: 4px; }
@@ -366,18 +311,34 @@ main { max-width: 960px; margin: 0 auto; padding: 0 1.5rem; }
   padding: 0.7rem 0.9rem;
   border-bottom: 1px solid var(--border);
 }
-.lead-table td {
-  padding: 0.9rem;
-  border-bottom: 1px solid var(--border);
-  font-size: 0.88rem;
-  vertical-align: top;
-}
+.lead-table td { padding: 0.9rem; border-bottom: 1px solid var(--border); font-size: 0.88rem; vertical-align: top; }
 .lead-table tr:hover td { background: var(--panel); }
 
 .biz-name { font-weight: 600; color: var(--text); }
 .biz-meta { color: var(--text-faint); font-size: 0.78rem; margin-top: 0.15rem; }
 .reason { color: var(--text-dim); font-size: 0.82rem; }
 .score { font-family: var(--mono); color: var(--text-dim); }
+
+.outreach-row td { background: var(--panel-2); border-bottom: 1px solid var(--border-bright); }
+.outreach-box { padding: 0.75rem 0.5rem; }
+.outreach-loading {
+  display: flex; align-items: center; gap: 0.6rem;
+  font-family: var(--mono); font-size: 0.8rem; color: var(--text-dim);
+}
+.outreach-text {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  padding: 0.85rem;
+  resize: vertical;
+}
+.outreach-actions { display: flex; align-items: center; gap: 1rem; margin-top: 0.6rem; }
+.outreach-source { font-family: var(--mono); font-size: 0.72rem; color: var(--text-faint); }
 
 .empty-state {
   border: 1px dashed var(--border-bright);
