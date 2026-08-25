@@ -9,7 +9,7 @@ import time
 from typing import List, Dict
 
 import config
-from src.discovery import geoapify_places, here_places, osm_places, duckduckgo_finder
+from src.discovery import geoapify_places, osm_places, duckduckgo_finder
 from src.analysis import (
     website_checker, performance_analyzer,
     wayback_checker, domain_checker, crux_checker, safe_browsing_checker,
@@ -26,11 +26,9 @@ def discover_all(cities: List[str], categories: List[str], max_results: int) -> 
 
             combined = []
 
-            # Geoapify and HERE both run as PRIMARY sources — different
-            # underlying databases (OSM vs HERE's proprietary map data),
-            # so combining them genuinely widens coverage rather than
-            # one just backing up the other. Deduplication downstream
-            # (deduplicate()) collapses any businesses both find.
+            # Geoapify is the PRIMARY discovery source (Places API,
+            # backed by OpenStreetMap data served from Geoapify's own
+            # infrastructure).
             try:
                 geo_leads = geoapify_places.discover_leads_for_city_category(city, category, max_results)
                 print(f"  -> Geoapify: {len(geo_leads)} businesses", flush=True)
@@ -38,17 +36,9 @@ def discover_all(cities: List[str], categories: List[str], max_results: int) -> 
             except Exception as e:
                 print(f"  [ERROR] Geoapify discovery failed for {city}/{category}: {e}", flush=True)
 
-            try:
-                here_leads = here_places.discover_leads_for_city_category(city, category, max_results)
-                if here_leads or config.HERE_API_KEY:
-                    print(f"  -> HERE: {len(here_leads)} businesses", flush=True)
-                combined.extend(here_leads)
-            except Exception as e:
-                print(f"  [ERROR] HERE discovery failed for {city}/{category}: {e}", flush=True)
-
-            # Fallback to direct Overpass only if BOTH primary sources
-            # returned nothing (e.g. no keys configured, or a transient
-            # issue with both APIs).
+            # Fallback to direct Overpass only if the primary source
+            # returned nothing (e.g. no key configured, or a transient
+            # issue with the API).
             if not combined:
                 try:
                     osm_leads = osm_places.discover_leads_for_city_category(city, category, max_results)
