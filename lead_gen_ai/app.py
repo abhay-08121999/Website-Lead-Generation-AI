@@ -11,12 +11,13 @@ import os
 import re
 import time
 
-from flask import Flask, render_template, request, send_from_directory, flash, redirect, url_for
+from flask import Flask, render_template, request, send_from_directory, flash, redirect, url_for, jsonify
 
 import config
 from src.pipeline import run_full_pipeline
 from src.output import export
 from src.nlp.query_parser import parse_query_with_ai
+from src.nlp.outreach_generator import generate_outreach_message
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-only-change-this-in-production")
@@ -85,6 +86,22 @@ def search():
 @app.route("/download/<path:filename>")
 def download(filename):
     return send_from_directory(config.OUTPUT_DIR, filename, as_attachment=True)
+
+
+@app.route("/outreach", methods=["POST"])
+def outreach():
+    """AJAX endpoint — drafts an outreach message for one lead."""
+    business_name = request.form.get("business_name", "").strip()
+    category = request.form.get("category", "").strip()
+    city = request.form.get("city", "").strip()
+    lead_category = request.form.get("lead_category", "").strip()
+    lead_reason = request.form.get("lead_reason", "").strip()
+
+    if not business_name:
+        return jsonify({"error": "Missing business name"}), 400
+
+    result = generate_outreach_message(business_name, category, city, lead_category, lead_reason)
+    return jsonify(result)
 
 
 if __name__ == "__main__":
