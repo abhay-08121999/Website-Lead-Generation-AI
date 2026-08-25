@@ -9,7 +9,7 @@ import time
 from typing import List, Dict
 
 import config
-from src.discovery import geoapify_places, osm_places
+from src.discovery import geoapify_places, here_places, osm_places
 from src.analysis import (
     website_checker, performance_analyzer,
     wayback_checker, domain_checker, crux_checker, safe_browsing_checker,
@@ -24,23 +24,40 @@ def discover_all(cities: List[str], categories: List[str], max_results: int) -> 
         for category in categories:
             print(f"[DISCOVER] {category} in {city} ...", flush=True)
 
-            leads = []
+            combined = []
+
+            # Geoapify and HERE both run as PRIMARY sources — different
+            # underlying databases (OSM vs HERE's proprietary map data),
+            # so combining them genuinely widens coverage rather than
+            # one just backing up the other. Deduplication downstream
+            # (deduplicate()) collapses any businesses both find.
             try:
-                leads = geoapify_places.discover_leads_for_city_category(city, category, max_results)
-                print(f"  -> Geoapify: {len(leads)} businesses", flush=True)
+                geo_leads = geoapify_places.discover_leads_for_city_category(city, category, max_results)
+                print(f"  -> Geoapify: {len(geo_leads)} businesses", flush=True)
+                combined.extend(geo_leads)
             except Exception as e:
                 print(f"  [ERROR] Geoapify discovery failed for {city}/{category}: {e}", flush=True)
 
-            # Fallback to direct Overpass only if Geoapify returned nothing
-            if not leads:
+            try:
+                here_leads = here_places.discover_leads_for_city_category(city, category, max_results)
+                if here_leads or config.HERE_API_KEY:
+                    print(f"  -> HERE: {len(here_leads)} businesses", flush=True)
+                combined.extend(here_leads)
+            except Exception as e:
+                print(f"  [ERROR] HERE discovery failed for {city}/{category}: {e}", flush=True)
+
+            # Fallback to direct Overpass only if BOTH primary sources
+            # returned nothing (e.g. no keys configured, or a transient
+            # issue with both APIs).
+            if not combined:
                 try:
                     osm_leads = osm_places.discover_leads_for_city_category(city, category, max_results)
                     print(f"  -> OpenStreetMap (fallback): {len(osm_leads)} businesses", flush=True)
-                    leads = osm_leads
+                    combined = osm_leads
                 except Exception as e:
                     print(f"  [ERROR] OpenStreetMap fallback failed for {city}/{category}: {e}", flush=True)
 
-            all_businesses.extend(leads)
+            all_businesses.extend(combined)
 
     return all_businesses
 
