@@ -32,6 +32,7 @@
       <th>Signal</th>
       <th>Why it's flagged</th>
       <th>Score</th>
+      <th>Outreach</th>
     </tr>
   </thead>
   <tbody>
@@ -41,7 +42,10 @@
         <div class="biz-name">{{ lead.business_name }}</div>
         <div class="biz-meta">{{ lead.address or 'address not listed' }}</div>
       </td>
-      <td>{{ lead.phone or '—' }}</td>
+      <td>
+        {{ lead.phone or '—' }}
+        {% if lead.contact_email %}<div class="biz-meta">{{ lead.contact_email }}</div>{% endif %}
+      </td>
       <td>
         {% if lead.lead_category == 'NO_WEBSITE' %}
           <span class="signal s0"><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span></span>
@@ -53,10 +57,96 @@
       </td>
       <td class="reason">{{ lead.lead_reason }}</td>
       <td class="score">{{ lead.lead_score }}</td>
+      <td>
+        <button type="button" class="btn btn-ghost outreach-btn"
+                data-name="{{ lead.business_name }}"
+                data-category="{{ category }}"
+                data-city="{{ city }}"
+                data-leadcat="{{ lead.lead_category }}"
+                data-reason="{{ lead.lead_reason }}">
+          Draft message
+        </button>
+      </td>
+    </tr>
+    <tr class="outreach-row" style="display:none;">
+      <td colspan="6">
+        <div class="outreach-box">
+          <div class="outreach-loading" style="display:none;">
+            <span class="scan-dot"></span> drafting message...
+          </div>
+          <textarea class="outreach-text" rows="6" readonly style="display:none;"></textarea>
+          <div class="outreach-actions" style="display:none;">
+            <button type="button" class="btn btn-ghost copy-btn">Copy to clipboard</button>
+            <span class="outreach-source"></span>
+          </div>
+        </div>
+      </td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
+
+<script>
+  document.querySelectorAll('.outreach-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const row = btn.closest('tr').nextElementSibling;
+      const box = row.querySelector('.outreach-box');
+      const loading = box.querySelector('.outreach-loading');
+      const textArea = box.querySelector('.outreach-text');
+      const actions = box.querySelector('.outreach-actions');
+      const sourceLabel = box.querySelector('.outreach-source');
+
+      const alreadyOpen = row.style.display !== 'none';
+      if (alreadyOpen && textArea.value) {
+        row.style.display = 'none';
+        return;
+      }
+
+      row.style.display = 'table-row';
+
+      if (textArea.value) return; // already generated, just re-show
+
+      loading.style.display = 'flex';
+      textArea.style.display = 'none';
+      actions.style.display = 'none';
+
+      const formData = new URLSearchParams({
+        business_name: btn.dataset.name,
+        category: btn.dataset.category,
+        city: btn.dataset.city,
+        lead_category: btn.dataset.leadcat,
+        lead_reason: btn.dataset.reason,
+      });
+
+      fetch('/outreach', { method: 'POST', body: formData })
+        .then(function (resp) { return resp.json(); })
+        .then(function (data) {
+          loading.style.display = 'none';
+          textArea.value = data.message || 'Could not generate a message — try again.';
+          textArea.style.display = 'block';
+          actions.style.display = 'flex';
+          sourceLabel.textContent = data.source === 'ai' ? '✨ AI-drafted' : 'template (add GROQ_API_KEY for AI drafts)';
+        })
+        .catch(function () {
+          loading.style.display = 'none';
+          textArea.value = 'Something went wrong generating this message.';
+          textArea.style.display = 'block';
+        });
+    });
+  });
+
+  document.querySelectorAll('.copy-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const textArea = btn.closest('.outreach-box').querySelector('.outreach-text');
+      textArea.select();
+      navigator.clipboard.writeText(textArea.value).then(function () {
+        const original = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(function () { btn.textContent = original; }, 1500);
+      });
+    });
+  });
+</script>
 
 {% else %}
 
